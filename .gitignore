@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data
+data/raw/*
+data/processed/*
+!data/.gitkeep
+
+# Models
+artifacts/*.pt
+artifacts/*.pkl
+artifacts/*.h5
+!artifacts/.gitkeep
+
+# MLflow
+mlruns/
+
+# DVC
+/data/raw
+/data/processed
+
+# Logs
+*.log
+logs/
+
+# AWS
+*.pem
+
+# Misc
+.DS_Store
+.coverage
+htmlcov/
