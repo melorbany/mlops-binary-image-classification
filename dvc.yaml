@@ -1,0 +1,42 @@
+stages:
+  download:
+    cmd: python src/data/download.py
+    deps:
+      - src/data/download.py
+    outs:
+      - data/raw:
+          cache: true
+          persist: true
+
+  preprocess:
+    cmd: python src/data/preprocess.py
+    deps:
+      - src/data/preprocess.py
+      - data/raw
+    params:
+      - preprocess.image_size
+      - preprocess.train_split
+      - preprocess.val_split
+    outs:
+      - data/processed:
+          cache: true
+
+  train:
+    cmd: python src/models/train.py
+    deps:
+      - src/models/train.py
+      - src/models/cnn.py
+      - data/processed
+    params:
+      - train.epochs
+      - train.batch_size
+      - train.learning_rate
+    outs:
+      - artifacts/model.pt:
+          cache: true
+    metrics:
+      - artifacts/metrics.json:
+          cache: false
+    plots:
+      - artifacts/loss_curve.json:
+          cache: false

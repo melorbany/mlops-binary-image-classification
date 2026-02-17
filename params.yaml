@@ -1,0 +1,10 @@
+preprocess:
+  image_size: 224
+  train_split: 0.8
+  val_split: 0.1
+
+train:
+  epochs: 10
+  batch_size: 32
+  learning_rate: 0.001
+  model_name: "simple_cnn"
