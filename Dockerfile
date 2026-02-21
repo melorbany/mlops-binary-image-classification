@@ -3,14 +3,15 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# Install build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
+# Install only the packages needed for inference (CPU-only torch)
+COPY requirements-serve.txt .
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir --prefix=/install -r requirements.txt
+    && pip install --no-cache-dir --prefix=/install -r requirements-serve.txt \
+    # Remove compiled test files, __pycache__, and dist-info bloat
+    && find /install -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
+    && find /install -type d -name "*.dist-info" -exec rm -rf {}/RECORD {} + 2>/dev/null || true \
+    && find /install -name "*.pyc" -delete \
+    && find /install -name "*.pyo" -delete
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
@@ -21,10 +22,10 @@ LABEL maintainer="MLOps Student" \
 
 WORKDIR /app
 
-# Copy installed packages from builder
+# Copy only installed inference packages from builder
 COPY --from=builder /install /usr/local
 
-# Copy application source
+# Copy application source (only the api + models modules needed at runtime)
 COPY src/ ./src/
 COPY models/ ./models/
 COPY params.yaml .
@@ -36,7 +37,7 @@ USER appuser
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     MODEL_PATH=/app/models/model.pt \
-    IMAGE_SIZE=224
+    IMAGE_SIZE=64
 
 EXPOSE 8000
 
