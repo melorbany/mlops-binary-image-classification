@@ -3,15 +3,12 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# Install only the packages needed for inference (CPU-only torch)
 COPY requirements-serve.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir --prefix=/install -r requirements-serve.txt \
-    # Remove compiled test files, __pycache__, and dist-info bloat
-    && find /install -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
-    && find /install -type d -name "*.dist-info" -exec rm -rf {}/RECORD {} + 2>/dev/null || true \
     && find /install -name "*.pyc" -delete \
-    && find /install -name "*.pyo" -delete
+    && find /install -name "*.pyo" -delete \
+    && find /install -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null; true
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
@@ -22,15 +19,12 @@ LABEL maintainer="MLOps Student" \
 
 WORKDIR /app
 
-# Copy only installed inference packages from builder
 COPY --from=builder /install /usr/local
 
-# Copy application source (only the api + models modules needed at runtime)
 COPY src/ ./src/
 COPY models/ ./models/
 COPY params.yaml .
 
-# Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
