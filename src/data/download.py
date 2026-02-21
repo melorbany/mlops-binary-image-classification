@@ -16,14 +16,16 @@ Usage:
 import logging
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 RAW_DIR = Path("data/raw")
 HF_DATASET = "microsoft/cats_vs_dogs"
 LABEL_MAP = {0: "cat", 1: "dog"}
 MAX_PER_LABEL = 100  # cap at 100 images per class (200 total)
-CHUNK_SIZE = 10      # log progress and flush every 10 images per label
+CHUNK_SIZE = 10  # log progress and flush every 10 images per label
 
 
 def download_dataset(
@@ -46,7 +48,8 @@ def download_dataset(
     if cat_count >= max_per_label and dog_count >= max_per_label:
         logger.info(
             "Dataset already present (%d cats, %d dogs) — skipping download.",
-            cat_count, dog_count,
+            cat_count,
+            dog_count,
         )
         return
 
@@ -56,7 +59,9 @@ def download_dataset(
 
     logger.info(
         "Downloading '%s' — %d images per label in chunks of %d ...",
-        HF_DATASET, max_per_label, chunk_size,
+        HF_DATASET,
+        max_per_label,
+        chunk_size,
     )
     ds = load_dataset(HF_DATASET, split="train", trust_remote_code=True)
 
@@ -82,13 +87,17 @@ def download_dataset(
         if counts[label] - chunk_start[label] >= chunk_size:
             logger.info(
                 "  [%s] chunk done — %d / %d saved",
-                label, counts[label], max_per_label,
+                label,
+                counts[label],
+                max_per_label,
             )
             chunk_start[label] = counts[label]
 
     logger.info(
         "Download complete — cat: %d images, dog: %d images → %s",
-        counts["cat"], counts["dog"], dest_dir,
+        counts["cat"],
+        counts["dog"],
+        dest_dir,
     )
 
 

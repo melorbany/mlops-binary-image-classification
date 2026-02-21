@@ -18,8 +18,8 @@ from PIL import Image
 from src.models.cnn import SimpleCNN, get_model
 from src.models.dataset import get_eval_transform
 
-
 # ── Model architecture tests ──────────────────────────────────────────────────
+
 
 class TestSimpleCNN:
     def test_get_model_returns_simplecnn(self):
@@ -71,6 +71,7 @@ class TestSimpleCNN:
 
 # ── Transform / prediction wrapper tests ─────────────────────────────────────
 
+
 class TestPredictionWrapper:
     @pytest.fixture
     def dummy_model(self):
@@ -115,24 +116,34 @@ class TestPredictionWrapper:
 
 # ── FastAPI endpoint tests ────────────────────────────────────────────────────
 
+
 class TestAPIEndpoints:
     @pytest.fixture
     def client(self, tmp_path):
-        """Test client with mocked model loading."""
-        # Create a fake model file so lifespan doesn't fail
+        """Test client that loads a real (untrained) model without reloading the module.
+
+        Avoids importlib.reload which would re-register Prometheus metrics and
+        raise ValueError: Duplicated timeseries in CollectorRegistry.
+        """
+        from fastapi.testclient import TestClient
+
+        import src.api.app as app_module
+
+        # Save a freshly-initialised (untrained) model to a temp file
         model = get_model("SimpleCNN")
         model_path = tmp_path / "model.pt"
         torch.save(model.state_dict(), model_path)
 
-        with patch.dict("os.environ", {"MODEL_PATH": str(model_path)}):
-            # Re-import app after env var is set
-            import importlib
-            import src.api.app as app_module
-            importlib.reload(app_module)
-
-            from fastapi.testclient import TestClient
-            client = TestClient(app_module.app)
-            yield client
+        # Patch MODEL_PATH so _load_model() reads the temp file,
+        # then manually load the model — no module reload needed.
+        with patch.object(app_module, "MODEL_PATH", model_path):
+            original_model = app_module._model
+            app_module._model = app_module._load_model()
+            try:
+                with TestClient(app_module.app, raise_server_exceptions=True) as client:
+                    yield client
+            finally:
+                app_module._model = original_model
 
     def test_health_returns_200(self, client):
         resp = client.get("/health")
@@ -183,4 +194,8 @@ class TestAPIEndpoints:
     def test_metrics_endpoint_exists(self, client):
         resp = client.get("/metrics")
         assert resp.status_code == 200
-        assert "predict_requests_total" in resp.text or "predict_latency" in resp.text or True
+        assert (
+            "predict_requests_total" in resp.text
+            or "predict_latency" in resp.text
+            or True
+        )

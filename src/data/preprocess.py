@@ -21,7 +21,9 @@ from typing import List, Tuple
 
 from PIL import Image
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 RAW_DIR = Path("data/raw")
@@ -36,6 +38,7 @@ RANDOM_SEED = 42
 
 # ── Core transformation ──────────────────────────────────────────────────────
 
+
 def resize_and_convert(src: Path, dst: Path) -> None:
     """Open an image, convert to RGB, resize to IMAGE_SIZE, and save."""
     img = Image.open(src).convert("RGB")
@@ -45,6 +48,7 @@ def resize_and_convert(src: Path, dst: Path) -> None:
 
 
 # ── Splitting ────────────────────────────────────────────────────────────────
+
 
 def split_files(
     files: List[Path],
@@ -62,13 +66,14 @@ def split_files(
     n_val = int(n * val_ratio)
 
     train = files[:n_train]
-    val = files[n_train:n_train + n_val]
-    test = files[n_train + n_val:]
+    val = files[n_train : n_train + n_val]
+    test = files[n_train + n_val :]
 
     return train, val, test
 
 
 # ── Main pipeline ────────────────────────────────────────────────────────────
+
 
 def _collect_images(raw_dir: Path) -> Tuple[List[Path], List[Path]]:
     """Return (cat_images, dog_images) lists from raw_dir."""
@@ -95,8 +100,7 @@ def preprocess(
     """Full preprocessing pipeline."""
     if not raw_dir.exists():
         raise FileNotFoundError(
-            f"Raw data directory '{raw_dir}' not found. "
-            "Run `make download` first."
+            f"Raw data directory '{raw_dir}' not found. " "Run `make download` first."
         )
 
     cats, dogs = _collect_images(raw_dir)
@@ -111,10 +115,17 @@ def preprocess(
         train_imgs, val_imgs, test_imgs = split_files(images)
         logger.info(
             "[%s] train=%d  val=%d  test=%d",
-            label, len(train_imgs), len(val_imgs), len(test_imgs),
+            label,
+            len(train_imgs),
+            len(val_imgs),
+            len(test_imgs),
         )
 
-        for split_name, split_imgs in [("train", train_imgs), ("val", val_imgs), ("test", test_imgs)]:
+        for split_name, split_imgs in [
+            ("train", train_imgs),
+            ("val", val_imgs),
+            ("test", test_imgs),
+        ]:
             split_dir = processed_dir / split_name / label
             split_dir.mkdir(parents=True, exist_ok=True)
 

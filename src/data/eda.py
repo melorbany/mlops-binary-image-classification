@@ -8,16 +8,21 @@ Usage:
 import logging
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 PROCESSED_DIR = Path("data/processed")
 REPORTS_DIR = Path("reports/eda")
 
 
-def run_eda(processed_dir: Path = PROCESSED_DIR, reports_dir: Path = REPORTS_DIR) -> None:
+def run_eda(
+    processed_dir: Path = PROCESSED_DIR, reports_dir: Path = REPORTS_DIR
+) -> None:
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         from PIL import Image

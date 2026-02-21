@@ -27,7 +27,9 @@ from tqdm import tqdm
 from src.models.cnn import get_model
 from src.models.dataset import get_dataloaders
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 PROCESSED_DIR = Path("data/processed")
@@ -36,6 +38,7 @@ PARAMS_FILE = Path("params.yaml")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def load_params() -> Dict:
     with open(PARAMS_FILE) as f:
@@ -48,6 +51,7 @@ def _accuracy(logits: torch.Tensor, labels: torch.Tensor) -> float:
 
 
 # ── One epoch ─────────────────────────────────────────────────────────────────
+
 
 def _run_epoch(
     model: nn.Module,
@@ -63,8 +67,14 @@ def _run_epoch(
 
     total_loss, total_acc, n_batches = 0.0, 0.0, 0
 
-    bar = tqdm(loader, desc=desc, unit="batch", leave=False,
-               file=sys.stdout, dynamic_ncols=True)
+    bar = tqdm(
+        loader,
+        desc=desc,
+        unit="batch",
+        leave=False,
+        file=sys.stdout,
+        dynamic_ncols=True,
+    )
 
     ctx = torch.enable_grad() if is_train else torch.no_grad()
     with ctx:
@@ -82,13 +92,15 @@ def _run_epoch(
             total_acc += _accuracy(logits, labels)
             n_batches += 1
 
-            bar.set_postfix(loss=f"{total_loss / n_batches:.4f}",
-                            acc=f"{total_acc / n_batches:.4f}")
+            bar.set_postfix(
+                loss=f"{total_loss / n_batches:.4f}", acc=f"{total_acc / n_batches:.4f}"
+            )
 
     return total_loss / n_batches, total_acc / n_batches
 
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
+
 
 def evaluate(
     model: nn.Module,
@@ -101,8 +113,14 @@ def evaluate(
     total_loss, total_acc, n_batches = 0.0, 0.0, 0
     all_preds, all_labels = [], []
 
-    bar = tqdm(loader, desc="  test ", unit="batch", leave=False,
-               file=sys.stdout, dynamic_ncols=True)
+    bar = tqdm(
+        loader,
+        desc="  test ",
+        unit="batch",
+        leave=False,
+        file=sys.stdout,
+        dynamic_ncols=True,
+    )
 
     with torch.no_grad():
         for images, labels in bar:
@@ -118,14 +136,16 @@ def evaluate(
             all_preds.extend(preds)
             all_labels.extend(labels.cpu().numpy())
 
-            bar.set_postfix(loss=f"{total_loss / n_batches:.4f}",
-                            acc=f"{total_acc / n_batches:.4f}")
+            bar.set_postfix(
+                loss=f"{total_loss / n_batches:.4f}", acc=f"{total_acc / n_batches:.4f}"
+            )
 
     cm = confusion_matrix(all_labels, all_preds)
     return total_loss / n_batches, total_acc / n_batches, cm
 
 
 # ── Training loop ─────────────────────────────────────────────────────────────
+
 
 def train(params: Dict | None = None) -> Path:
     """Full training pipeline. Returns path to saved model."""
@@ -142,7 +162,9 @@ def train(params: Dict | None = None) -> Path:
     # force num_workers=0 to avoid silent hangs on startup.
     num_workers = 0 if sys.platform == "win32" else tp["num_workers"]
     if num_workers != tp["num_workers"]:
-        logger.info("Windows detected — setting num_workers=0 (was %d)", tp["num_workers"])
+        logger.info(
+            "Windows detected — setting num_workers=0 (was %d)", tp["num_workers"]
+        )
 
     train_loader, val_loader, test_loader = get_dataloaders(
         processed_dir=PROCESSED_DIR,
@@ -165,16 +187,18 @@ def train(params: Dict | None = None) -> Path:
         logger.info("MLflow run id: %s", run.info.run_id)
 
         # Log all params
-        mlflow.log_params({
-            "epochs": tp["epochs"],
-            "batch_size": tp["batch_size"],
-            "learning_rate": tp["learning_rate"],
-            "model_arch": tp["model_arch"],
-            "dropout": tp["dropout"],
-            "image_size": pp["image_size"][0],
-            "train_ratio": pp["train_ratio"],
-            "val_ratio": pp["val_ratio"],
-        })
+        mlflow.log_params(
+            {
+                "epochs": tp["epochs"],
+                "batch_size": tp["batch_size"],
+                "learning_rate": tp["learning_rate"],
+                "model_arch": tp["model_arch"],
+                "dropout": tp["dropout"],
+                "image_size": pp["image_size"][0],
+                "train_ratio": pp["train_ratio"],
+                "val_ratio": pp["val_ratio"],
+            }
+        )
 
         best_val_loss = float("inf")
         train_losses, val_losses = [], []
@@ -183,11 +207,18 @@ def train(params: Dict | None = None) -> Path:
         for epoch in range(1, tp["epochs"] + 1):
             t0 = time.time()
             train_loss, train_acc = _run_epoch(
-                model, train_loader, criterion, device, optimizer,
+                model,
+                train_loader,
+                criterion,
+                device,
+                optimizer,
                 desc=f"Epoch {epoch}/{tp['epochs']} train",
             )
             val_loss, val_acc = _run_epoch(
-                model, val_loader, criterion, device,
+                model,
+                val_loader,
+                criterion,
+                device,
                 desc=f"Epoch {epoch}/{tp['epochs']}   val",
             )
             elapsed = time.time() - t0
@@ -199,18 +230,27 @@ def train(params: Dict | None = None) -> Path:
             train_accs.append(train_acc)
             val_accs.append(val_acc)
 
-            mlflow.log_metrics({
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "epoch_time_s": elapsed,
-            }, step=epoch)
+            mlflow.log_metrics(
+                {
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
+                    "epoch_time_s": elapsed,
+                },
+                step=epoch,
+            )
 
             logger.info(
                 "Epoch %d/%d — train_loss=%.4f  val_loss=%.4f  "
                 "train_acc=%.4f  val_acc=%.4f  (%.1fs)",
-                epoch, tp["epochs"], train_loss, val_loss, train_acc, val_acc, elapsed,
+                epoch,
+                tp["epochs"],
+                train_loss,
+                val_loss,
+                train_acc,
+                val_acc,
+                elapsed,
             )
 
             # Save best model
@@ -223,10 +263,12 @@ def train(params: Dict | None = None) -> Path:
         model.load_state_dict(torch.load(model_path, map_location=device))
         test_loss, test_acc, cm = evaluate(model, test_loader, criterion, device)
 
-        mlflow.log_metrics({
-            "test_loss": test_loss,
-            "test_acc": test_acc,
-        })
+        mlflow.log_metrics(
+            {
+                "test_loss": test_loss,
+                "test_acc": test_acc,
+            }
+        )
 
         logger.info("Test — loss=%.4f  acc=%.4f", test_loss, test_acc)
         logger.info("Confusion matrix:\n%s", cm)
@@ -244,9 +286,11 @@ def train(params: Dict | None = None) -> Path:
 
 # ── Artifact helpers ──────────────────────────────────────────────────────────
 
+
 def _log_loss_curve(train_losses, val_losses, epochs):
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -270,6 +314,7 @@ def _log_loss_curve(train_losses, val_losses, epochs):
 def _log_confusion_matrix(cm):
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -285,8 +330,14 @@ def _log_confusion_matrix(cm):
         ax.set_yticklabels(["Cat", "Dog"])
         for i in range(2):
             for j in range(2):
-                ax.text(j, i, str(cm[i, j]), ha="center", va="center",
-                        color="white" if cm[i, j] > cm.max() / 2 else "black")
+                ax.text(
+                    j,
+                    i,
+                    str(cm[i, j]),
+                    ha="center",
+                    va="center",
+                    color="white" if cm[i, j] > cm.max() / 2 else "black",
+                )
         fig.tight_layout()
         path = "/tmp/confusion_matrix.png"
         fig.savefig(path)

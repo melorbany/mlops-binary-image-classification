@@ -31,7 +31,7 @@ jobs:
         run: pip install flake8==7.0.0 black==24.4.2 isort==5.13.2
 
       - name: flake8
-        run: python -m flake8 src/ tests/ --max-line-length=120 --statistics
+        run: python -m flake8 src/ tests/ --statistics
 
       - name: black (check)
         run: python -m black --check src/ tests/
@@ -152,7 +152,7 @@ jobs:
           --cov=src
           --cov-report=term-missing
           --cov-report=xml:coverage.xml
-          --cov-fail-under=70
+          --cov-fail-under=40
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

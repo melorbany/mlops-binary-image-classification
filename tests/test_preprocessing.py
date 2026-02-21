@@ -11,15 +11,24 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from src.data.preprocess import resize_and_convert, split_files
+from src.data.preprocess import IMAGE_SIZE, resize_and_convert, split_files
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def sample_image(tmp_path: Path) -> Path:
-    """Create a small synthetic RGBA image on disk."""
+    """Create a small synthetic RGB image on disk (JPEG requires RGB, not RGBA)."""
     img_path = tmp_path / "test.jpg"
+    img = Image.new("RGB", (64, 64), color=(255, 128, 0))
+    img.save(img_path)
+    return img_path
+
+
+@pytest.fixture
+def sample_rgba_image(tmp_path: Path) -> Path:
+    """Create a small synthetic RGBA image saved as PNG."""
+    img_path = tmp_path / "test.png"
     img = Image.new("RGBA", (64, 64), color=(255, 128, 0, 200))
     img.save(img_path)
     return img_path
@@ -42,22 +51,23 @@ def file_list() -> list[Path]:
 
 # ── resize_and_convert tests ──────────────────────────────────────────────────
 
+
 class TestResizeAndConvert:
     def test_output_file_is_created(self, sample_image, tmp_path):
         dst = tmp_path / "out.jpg"
         resize_and_convert(sample_image, dst)
         assert dst.exists(), "Output file was not created"
 
-    def test_output_size_is_224x224(self, sample_image, tmp_path):
+    def test_output_size_matches_image_size(self, sample_image, tmp_path):
         dst = tmp_path / "out.jpg"
         resize_and_convert(sample_image, dst)
         img = Image.open(dst)
-        assert img.size == (224, 224), f"Expected (224, 224), got {img.size}"
+        assert img.size == IMAGE_SIZE, f"Expected {IMAGE_SIZE}, got {img.size}"
 
-    def test_output_mode_is_rgb(self, sample_image, tmp_path):
+    def test_output_mode_is_rgb(self, sample_rgba_image, tmp_path):
         """RGBA input must be converted to RGB."""
         dst = tmp_path / "out.jpg"
-        resize_and_convert(sample_image, dst)
+        resize_and_convert(sample_rgba_image, dst)
         img = Image.open(dst)
         assert img.mode == "RGB", f"Expected RGB, got {img.mode}"
 
@@ -67,7 +77,7 @@ class TestResizeAndConvert:
         resize_and_convert(sample_grey_image, dst)
         img = Image.open(dst)
         assert img.mode == "RGB", f"Expected RGB, got {img.mode}"
-        assert img.size == (224, 224)
+        assert img.size == IMAGE_SIZE
 
     def test_creates_parent_directories(self, sample_image, tmp_path):
         """Should create missing parent directories automatically."""
@@ -78,17 +88,17 @@ class TestResizeAndConvert:
     def test_custom_target_size(self, sample_image, tmp_path, monkeypatch):
         """Verify the function respects the IMAGE_SIZE constant."""
         import src.data.preprocess as preprocess_mod
+
         monkeypatch.setattr(preprocess_mod, "IMAGE_SIZE", (128, 128))
-        # Call directly with monkeypatched constant
-        from src.data.preprocess import IMAGE_SIZE
         dst = tmp_path / "out128.jpg"
         img = Image.open(sample_image).convert("RGB")
-        img = img.resize(IMAGE_SIZE)
+        img = img.resize((128, 128))
         img.save(dst)
         assert Image.open(dst).size == (128, 128)
 
 
 # ── split_files tests ─────────────────────────────────────────────────────────
+
 
 class TestSplitFiles:
     def test_total_length_preserved(self, file_list):

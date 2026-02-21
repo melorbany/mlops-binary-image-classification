@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 120
+# E203: whitespace before ':' — conflicts with Black's slice formatting (PEP 8 allows it)
+# W503: line break before binary operator — conflicts with Black
+extend-ignore = E203, W503
+exclude =
+    .venv,
+    .git,
+    __pycache__,
+    *.egg-info,
+    build,
+    dist,
+    mlruns,
+    data

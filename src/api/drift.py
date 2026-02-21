@@ -15,7 +15,9 @@ import time
 from pathlib import Path
 from typing import List, Tuple
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,7 @@ def simulate_prediction_batch(
     predicted = []
     confidences = []
 
-    images = list(image_dir.rglob("*.jpg"))[:len(true_labels)]
+    images = list(image_dir.rglob("*.jpg"))[: len(true_labels)]
 
     for img_path in images:
         with open(img_path, "rb") as f:
@@ -81,12 +83,14 @@ def compute_drift_report(
     if drift_detected:
         logger.warning(
             "DRIFT DETECTED: accuracy=%.4f below threshold=%.4f",
-            accuracy, ACCURACY_THRESHOLD,
+            accuracy,
+            ACCURACY_THRESHOLD,
         )
     else:
         logger.info(
             "No drift: accuracy=%.4f (threshold=%.4f)",
-            accuracy, ACCURACY_THRESHOLD,
+            accuracy,
+            ACCURACY_THRESHOLD,
         )
 
     return report
@@ -96,20 +100,25 @@ def log_drift_to_mlflow(report: dict) -> None:
     """Log drift report to MLflow."""
     try:
         import mlflow
+
         mlflow.set_experiment("cats-vs-dogs-drift")
         with mlflow.start_run(run_name="post-deploy-drift"):
-            mlflow.log_metrics({
-                "post_deploy_accuracy": report.get("accuracy", 0),
-                "post_deploy_avg_confidence": report.get("avg_confidence", 0),
-                "drift_detected": int(report.get("drift_detected", False)),
-            })
+            mlflow.log_metrics(
+                {
+                    "post_deploy_accuracy": report.get("accuracy", 0),
+                    "post_deploy_avg_confidence": report.get("avg_confidence", 0),
+                    "drift_detected": int(report.get("drift_detected", False)),
+                }
+            )
             mlflow.log_dict(report, "drift_report.json")
         logger.info("Drift report logged to MLflow")
     except Exception as exc:
         logger.warning("Could not log to MLflow: %s", exc)
 
 
-def save_report(report: dict, output_path: Path = Path("reports/drift_report.json")) -> None:
+def save_report(
+    report: dict, output_path: Path = Path("reports/drift_report.json")
+) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2))
     logger.info("Drift report saved to %s", output_path)
@@ -123,8 +132,12 @@ if __name__ == "__main__":
 
     test_dir = Path(args.test_dir)
     # Simulate true labels from directory structure
-    cat_images = list((test_dir / "cat").glob("*.jpg")) if (test_dir / "cat").exists() else []
-    dog_images = list((test_dir / "dog").glob("*.jpg")) if (test_dir / "dog").exists() else []
+    cat_images = (
+        list((test_dir / "cat").glob("*.jpg")) if (test_dir / "cat").exists() else []
+    )
+    dog_images = (
+        list((test_dir / "dog").glob("*.jpg")) if (test_dir / "dog").exists() else []
+    )
 
     # Use up to 50 images per class
     sample_images = cat_images[:50] + dog_images[:50]

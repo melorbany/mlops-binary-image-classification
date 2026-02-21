@@ -93,6 +93,7 @@ app = FastAPI(
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+
 @app.get("/health", tags=["Health"])
 async def health() -> JSONResponse:
     """Liveness check."""
@@ -148,15 +149,20 @@ async def predict(file: UploadFile = File(...)) -> JSONResponse:
 
         logger.info(
             "predict: file=%s label=%s prob=%.4f latency=%.3fs",
-            file.filename, label, prob, elapsed,
+            file.filename,
+            label,
+            prob,
+            elapsed,
         )
 
-        return JSONResponse(content={
-            "label": label,
-            "probability": round(prob, 4),
-            "raw_logit": round(logit, 6),
-            "latency_ms": round(elapsed * 1000, 2),
-        })
+        return JSONResponse(
+            content={
+                "label": label,
+                "probability": round(prob, 4),
+                "raw_logit": round(logit, 6),
+                "latency_ms": round(elapsed * 1000, 2),
+            }
+        )
 
     except HTTPException:
         raise
