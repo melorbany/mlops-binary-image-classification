@@ -1,48 +1,44 @@
-# scripts/python/run_api.py
-#!/usr/bin/env python3
-"""Cross-platform API runner."""
-import os
-import sys
+#!/usr/bin/env python
+"""
+Start the FastAPI inference service locally using uvicorn.
+
+Cross-platform — uses subprocess so it works on Windows and Linux.
+
+Usage:
+    python scripts/run_api.py [--port 8000] [--host 0.0.0.0] [--no-reload]
+"""
+
 import argparse
-from pathlib import Path
+import subprocess
+import sys
 
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-os.chdir(project_root)
 
-def main():
-    parser = argparse.ArgumentParser(description='Run the API server')
-    parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=8000)
-    parser.add_argument('--reload', action='store_true', default=True)
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the Cats vs Dogs API")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    parser.add_argument("--reload", action="store_true", default=False,
+                        help="Enable hot reload (disabled by default on Windows to avoid "
+                             "SpawnProcess traceback on Ctrl+C)")
     args = parser.parse_args()
-    
-    print("=" * 50)
-    print("  Starting FastAPI Server")
-    print("=" * 50)
-    
-    # Check if model exists
-    model_path = project_root / "artifacts" / "model.pt"
-    if not model_path.exists():
-        print("\nWarning: Model not found. Creating dummy model...")
-        import torch
-        from src.models.cnn import SimpleCNN
-        model = SimpleCNN(num_classes=2)
-        model_path.parent.mkdir(exist_ok=True)
-        torch.save(model.state_dict(), model_path)
-        print("  Dummy model created.")
-    
-    print(f"\nServer: http://{args.host}:{args.port}")
-    print(f"API Docs: http://{args.host}:{args.port}/docs")
-    print("\nPress Ctrl+C to stop\n")
-    
-    import uvicorn
-    uvicorn.run(
-        "src.api.main:app",
-        host=args.host,
-        port=args.port,
-        reload=args.reload
-    )
+
+    cmd = [
+        sys.executable, "-m", "uvicorn",
+        "src.api.app:app",
+        "--host", args.host,
+        "--port", str(args.port),
+    ]
+    if args.reload:
+        cmd.append("--reload")
+
+    print(f"[run_api] Starting API on {args.host}:{args.port} ...")
+    print("[run_api] Press Ctrl+C to stop.")
+    try:
+        subprocess.run(cmd, check=False)
+    except KeyboardInterrupt:
+        pass
+    print("[run_api] Server stopped.")
+
 
 if __name__ == "__main__":
     main()

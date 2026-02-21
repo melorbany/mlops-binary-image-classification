@@ -1,0 +1,51 @@
+# Version control
+.git/
+.gitignore
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Data (not baked into image)
+data/
+mlruns/
+mlartifacts/
+
+# Development
+.venv/
+venv/
+ENV/
+.env
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+notebooks/
+
+# CI/CD config
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# DVC metadata
+.dvc/
+*.dvc
+dvc.yaml
+dvc.lock
+
+# Scripts
+scripts/
+
+# Docs
+*.md

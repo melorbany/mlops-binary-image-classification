@@ -1,10 +1,13 @@
 preprocess:
-  image_size: 224
-  train_split: 0.8
-  val_split: 0.1
+  image_size: [64, 64]   # CPU-friendly: 12x fewer pixels than 224x224
+  train_ratio: 0.80
+  val_ratio: 0.10
+  seed: 42
 
 train:
-  epochs: 10
-  batch_size: 32
+  epochs: 5              # enough for a baseline on 2k images
+  batch_size: 16         # smaller batches fit CPU cache better
   learning_rate: 0.001
-  model_name: "simple_cnn"
+  num_workers: 0         # must be 0 on Windows (no fork support)
+  model_arch: "SimpleCNN"
+  dropout: 0.5

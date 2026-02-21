@@ -1,6 +1,6 @@
 stages:
   download:
-    cmd: python src/data/download.py
+    cmd: python -m src.data.download
     deps:
       - src/data/download.py
     outs:
@@ -9,34 +9,32 @@ stages:
           persist: true
 
   preprocess:
-    cmd: python src/data/preprocess.py
+    cmd: python -m src.data.preprocess
     deps:
       - src/data/preprocess.py
       - data/raw
     params:
-      - preprocess.image_size
-      - preprocess.train_split
-      - preprocess.val_split
+      - params.yaml:
+          - preprocess.image_size
+          - preprocess.train_ratio
+          - preprocess.val_ratio
+          - preprocess.seed
     outs:
       - data/processed:
           cache: true
+          persist: true
 
   train:
-    cmd: python src/models/train.py
+    cmd: python -m src.models.train
     deps:
       - src/models/train.py
-      - src/models/cnn.py
       - data/processed
     params:
-      - train.epochs
-      - train.batch_size
-      - train.learning_rate
+      - params.yaml:
+          - train.epochs
+          - train.batch_size
+          - train.learning_rate
+          - train.num_workers
     outs:
-      - artifacts/model.pt:
+      - models/model.pt:
           cache: true
-    metrics:
-      - artifacts/metrics.json:
-          cache: false
-    plots:
-      - artifacts/loss_curve.json:
-          cache: false

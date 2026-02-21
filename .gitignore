@@ -3,61 +3,64 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.md
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
 *.egg
-
-# Virtual environments
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
 venv/
-ENV/
-.env
+.venv/
+pip-wheel-metadata/
+*.whl
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Jupyter
+.ipynb_checkpoints/
 
-# Data
-data/raw/*
-data/processed/*
-!data/.gitkeep
+# Data (tracked by DVC)
+data/raw/
+data/processed/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
-# Models
-artifacts/*.pt
-artifacts/*.pkl
-artifacts/*.h5
-!artifacts/.gitkeep
+# Models (tracked by DVC/MLflow)
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.pkl
+!models/.gitkeep
 
 # MLflow
 mlruns/
+mlartifacts/
 
-# DVC
-/data/raw
-/data/processed
+# Environment
+.env
+.env.*
+*.env
 
-# Logs
-*.log
-logs/
-
-# AWS
-*.pem
-
-# Misc
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
 .coverage
 htmlcov/
+coverage.xml
+
+# Pytest cache
+.pytest_cache/
+
+# Logs
+logs/
+*.log
+
+# Kaggle credentials
+kaggle.json

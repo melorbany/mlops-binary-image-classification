@@ -1,0 +1,297 @@
+name: CI/CD — Cats vs Dogs MLOps Pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  PYTHON_VERSION: "3.11"
+  DOCKER_IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/cats-vs-dogs
+  APP_CONTAINER_NAME: cats-vs-dogs-api
+
+# ══════════════════════════════════════════════════════════════════════════════
+jobs:
+
+# ── 1. Lint ───────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install linting tools
+        run: pip install flake8==7.0.0 black==24.4.2 isort==5.13.2
+
+      - name: flake8
+        run: python -m flake8 src/ tests/ --max-line-length=120 --statistics
+
+      - name: black (check)
+        run: python -m black --check src/ tests/
+
+      - name: isort (check)
+        run: python -m isort --check-only src/ tests/
+
+# ── 2. Security ───────────────────────────────────────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install security tools
+        run: pip install bandit==1.7.8 safety==3.2.0
+
+      - name: bandit (static analysis)
+        run: python -m bandit -r src/ -ll
+
+      - name: safety (dependency vulnerabilities)
+        run: python -m safety check -r requirements.txt --ignore 70612
+        continue-on-error: true
+
+      - name: Secret scan
+        run: python scripts/secret_scan.py --dirs src tests
+
+# ── 3. Train (download → preprocess → train → EDA) ───────────────────────────
+#    Single job that produces the ready-to-serve model.pt used by all
+#    downstream jobs (test, docker-build, push, deploy).
+  train:
+    name: Download · Preprocess · Train
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download dataset (5 000 per label, no credentials)
+        run: python scripts/download.py
+
+      - name: Preprocess — resize 224×224 RGB, split 80/10/10
+        run: python scripts/preprocess.py
+
+      - name: EDA plots (informational)
+        run: python -m src.data.eda
+        continue-on-error: true
+
+      - name: Train model (MLflow tracking → models/model.pt)
+        env:
+          MLFLOW_TRACKING_URI: ./mlruns
+        run: python scripts/train.py
+
+      - name: Verify model file exists
+        run: python -c "
+from pathlib import Path
+p = Path('models/model.pt')
+assert p.exists() and p.stat().st_size > 0, f'model.pt missing or empty: {p}'
+print(f'model.pt OK — {p.stat().st_size / 1e6:.1f} MB')
+"
+
+      # ── Artifacts ──────────────────────────────────────────────────────────
+      - name: Upload trained model
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model
+          path: models/model.pt
+          retention-days: 7
+
+      - name: Upload MLflow runs
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-runs
+          path: mlruns/
+          retention-days: 7
+
+      - name: Upload EDA plots
+        uses: actions/upload-artifact@v4
+        with:
+          name: eda-plots
+          path: reports/eda/
+          retention-days: 7
+        if: always()
+
+# ── 4. Test & Coverage ────────────────────────────────────────────────────────
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: train
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+          path: models/
+
+      - name: Run pytest with coverage
+        run: >-
+          python -m pytest tests/ -v
+          --cov=src
+          --cov-report=term-missing
+          --cov-report=xml:coverage.xml
+          --cov-fail-under=70
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+# ── 5. Docker Build & Validate ────────────────────────────────────────────────
+#    Bakes the trained model.pt into the image, starts the container,
+#    and validates the API is healthy before any push.
+  docker-build:
+    name: Docker Build & Validate
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Pillow for smoke test
+        run: pip install Pillow==11.1.0
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+          path: models/
+
+      - name: Build Docker image (model baked in)
+        run: >-
+          docker build
+          -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          -t ${{ env.DOCKER_IMAGE }}:latest .
+
+      - name: Run container
+        run: >-
+          docker run -d
+          --name ${{ env.APP_CONTAINER_NAME }}
+          -p 8000:8000
+          ${{ env.DOCKER_IMAGE }}:latest
+
+      - name: Validate API health
+        run: python scripts/smoke_test.py --url http://localhost:8000 --wait 15 --require-model
+
+      - name: Stop container
+        if: always()
+        run: docker stop ${{ env.APP_CONTAINER_NAME }} || true
+
+# ── 6. Push Image to Registry ─────────────────────────────────────────────────
+  push-image:
+    name: Push Docker Image
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+          path: models/
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image with model
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+
+# ── 7. Deploy ─────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Cloud Server
+    runs-on: ubuntu-latest
+    needs: push-image
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CLOUD_HOST }}
+          username: ${{ secrets.CLOUD_SSH_USER }}
+          key: ${{ secrets.CLOUD_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p /opt/cats-vs-dogs && cd /opt/cats-vs-dogs
+
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/master/docker-compose.yml \
+              -o docker-compose.yml
+
+            docker pull ${{ env.DOCKER_IMAGE }}:latest
+            docker compose down || true
+            DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}:latest \
+            APP_CONTAINER_NAME=${{ env.APP_CONTAINER_NAME }} \
+            docker compose up -d
+
+            echo "Deployment complete."
+
+# ── 8. Smoke Tests (Post-Deploy) ──────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Tests (Post-Deploy)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Pillow for smoke test image generation
+        run: pip install Pillow==11.1.0
+
+      - name: Run smoke tests against deployed service
+        env:
+          SERVICE_URL: http://${{ secrets.CLOUD_HOST }}:8000
+        run: python scripts/smoke_test.py --url "$SERVICE_URL" --wait 20 --require-model

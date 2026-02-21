@@ -1,49 +1,68 @@
-"""CNN model for Cats vs Dogs classification."""
+"""
+Simple CNN architecture for binary image classification (Cats vs Dogs).
+"""
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 
 class SimpleCNN(nn.Module):
-    """Simple CNN for binary classification."""
-    
-    def __init__(self, num_classes: int = 2):
-        super(SimpleCNN, self).__init__()
-        
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
-        self.bn4 = nn.BatchNorm2d(256)
-        
-        self.pool = nn.MaxPool2d(2, 2)
-        self.dropout = nn.Dropout(0.5)
-        
-        # After 4 pooling layers: 224 -> 112 -> 56 -> 28 -> 14
-        self.fc1 = nn.Linear(256 * 14 * 14, 512)
-        self.fc2 = nn.Linear(512, num_classes)
-    
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = self.pool(F.relu(self.bn4(self.conv4(x))))
-        
-        x = x.view(x.size(0), -1)
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
-        
-        return x
+    """
+    Lightweight CNN for 224×224 RGB binary classification.
 
-def get_model(model_name: str = "simple_cnn", num_classes: int = 2) -> nn.Module:
-    """Factory function to get model by name."""
-    models = {
-        "simple_cnn": SimpleCNN
-    }
-    
-    if model_name not in models:
-        raise ValueError(f"Unknown model: {model_name}")
-    
-    return models[model_name](num_classes=num_classes)
+    Architecture:
+      Conv(32) → BN → ReLU → Pool
+      Conv(64) → BN → ReLU → Pool
+      Conv(128) → BN → ReLU → Pool
+      Conv(256) → BN → ReLU → GlobalAvgPool
+      FC(512) → Dropout → FC(1)
+    """
+
+    def __init__(self, dropout: float = 0.5) -> None:
+        super().__init__()
+
+        self.features = nn.Sequential(
+            # Block 1
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),  # 112×112
+
+            # Block 2
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),  # 56×56
+
+            # Block 3
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),  # 28×28
+
+            # Block 4
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((4, 4)),  # 4×4
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(256 * 4 * 4, 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(512, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.classifier(x)
+        return x  # raw logits (use BCEWithLogitsLoss)
+
+
+def get_model(arch: str = "SimpleCNN", dropout: float = 0.5) -> nn.Module:
+    """Factory function: return a model by architecture name."""
+    if arch == "SimpleCNN":
+        return SimpleCNN(dropout=dropout)
+    raise ValueError(f"Unknown architecture: {arch}")
