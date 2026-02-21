@@ -100,12 +100,7 @@ jobs:
         run: python scripts/train.py
 
       - name: Verify model file exists
-        run: python -c "
-from pathlib import Path
-p = Path('models/model.pt')
-assert p.exists() and p.stat().st_size > 0, f'model.pt missing or empty: {p}'
-print(f'model.pt OK — {p.stat().st_size / 1e6:.1f} MB')
-"
+        run: python -c "from pathlib import Path; p = Path('models/model.pt'); assert p.exists() and p.stat().st_size > 0, 'model.pt missing or empty: ' + str(p); print('model.pt OK -', round(p.stat().st_size / 1e6, 1), 'MB')"
 
       # ── Artifacts ──────────────────────────────────────────────────────────
       - name: Upload trained model
@@ -183,9 +178,6 @@ print(f'model.pt OK — {p.stat().st_size / 1e6:.1f} MB')
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-
-      - name: Install Pillow for smoke test
-        run: pip install Pillow==11.1.0
 
       - name: Download trained model
         uses: actions/download-artifact@v4
@@ -287,9 +279,6 @@ print(f'model.pt OK — {p.stat().st_size / 1e6:.1f} MB')
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-
-      - name: Install Pillow for smoke test image generation
-        run: pip install Pillow==11.1.0
 
       - name: Run smoke tests against deployed service
         env:
