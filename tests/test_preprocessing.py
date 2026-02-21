@@ -6,7 +6,6 @@ Tests:
   - split_files: correct proportions, deterministic, no overlap
 """
 
-import random
 from pathlib import Path
 
 import pytest
@@ -15,6 +14,7 @@ from PIL import Image
 from src.data.preprocess import resize_and_convert, split_files
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_image(tmp_path: Path) -> Path:

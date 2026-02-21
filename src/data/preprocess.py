@@ -16,7 +16,6 @@ Usage:
 
 import logging
 import random
-import shutil
 from pathlib import Path
 from typing import List, Tuple
 
@@ -63,8 +62,8 @@ def split_files(
     n_val = int(n * val_ratio)
 
     train = files[:n_train]
-    val = files[n_train : n_train + n_val]
-    test = files[n_train + n_val :]
+    val = files[n_train:n_train + n_val]
+    test = files[n_train + n_val:]
 
     return train, val, test
 

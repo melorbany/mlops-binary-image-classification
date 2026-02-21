@@ -26,7 +26,6 @@ def simulate_prediction_batch(
 ) -> Tuple[List[int], List[float]]:
     """Send images to /predict, collect predicted labels and probabilities."""
     import requests
-    from PIL import Image
 
     predicted = []
     confidences = []

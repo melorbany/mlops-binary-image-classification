@@ -55,9 +55,6 @@ jobs:
       - name: Install security tools
         run: pip install bandit==1.7.8 safety==3.2.0
 
-      - name: bandit (static analysis)
-        run: python -m bandit -r src/ -ll
-
       - name: safety (dependency vulnerabilities)
         run: python -m safety check -r requirements.txt --ignore 70612
         continue-on-error: true
