@@ -254,7 +254,7 @@ jobs:
             docker compose down --remove-orphans || true
             DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}:latest \
             APP_CONTAINER_NAME=${{ env.APP_CONTAINER_NAME }} \
-            docker compose up -d
+            docker compose up -d --remove-orphans --force-recreate
 
             echo "Deployment complete."
 
