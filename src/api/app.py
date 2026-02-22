@@ -88,6 +88,8 @@ app = FastAPI(
     description="Binary image classification service (M2 — MLOps Assignment)",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/",
+    redoc_url="/redoc",
 )
 
 
