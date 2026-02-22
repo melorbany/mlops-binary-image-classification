@@ -10,10 +10,8 @@ services:
       - "8000:8000"
     environment:
       - MODEL_PATH=/app/models/model.pt
-      - IMAGE_SIZE=224
+      - IMAGE_SIZE=64
       - PYTHONUNBUFFERED=1
-    volumes:
-      - model_data:/app/models:ro
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -59,7 +57,6 @@ services:
       - mlops
 
 volumes:
-  model_data:
   prometheus_data:
   grafana_data:
 
