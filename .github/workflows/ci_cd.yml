@@ -250,15 +250,8 @@ jobs:
 
             curl -fsSL "$BASE_URL/docker-compose.yml" -o docker-compose.yml
 
-            rm -rf monitoring/
-            mkdir -p monitoring/grafana/provisioning/datasources
-            curl -fsSL "$BASE_URL/monitoring/prometheus.yml" \
-              -o monitoring/prometheus.yml
-            curl -fsSL "$BASE_URL/monitoring/grafana/provisioning/datasources/prometheus.yaml" \
-              -o monitoring/grafana/provisioning/datasources/prometheus.yaml
-
             docker pull ${{ env.DOCKER_IMAGE }}:latest
-            docker compose down || true
+            docker compose down --remove-orphans || true
             DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}:latest \
             APP_CONTAINER_NAME=${{ env.APP_CONTAINER_NAME }} \
             docker compose up -d
